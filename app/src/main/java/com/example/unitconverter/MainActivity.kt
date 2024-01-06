@@ -22,7 +22,6 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.MutableDoubleState
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableDoubleStateOf
@@ -33,8 +32,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.unitconverter.ui.theme.UnitConverterTheme
-import kotlin.math.roundToInt
-import kotlin.math.roundToLong
+import kotlin.math.round
 
 class MainActivity : ComponentActivity() {
 
@@ -48,7 +46,6 @@ class MainActivity : ComponentActivity() {
                     color = MaterialTheme.colorScheme.background
                 ) {
                     UnitConverter()
-
                 }
             }
         }
@@ -59,14 +56,18 @@ class MainActivity : ComponentActivity() {
 fun UnitConverter() {
 
     var inputValue by remember { mutableStateOf("") }
-    var outputValue by remember { mutableStateOf("") }
-    var inConversionFactor = remember { mutableStateOf(1.00) }
-    var outConversionFactor = remember { mutableStateOf(1.00) }
+    val inConversionFactor = remember { mutableDoubleStateOf(1.00) }
+    val outConversionFactor = remember { mutableDoubleStateOf(1.00) }
+    var outUnit by remember { mutableStateOf("Meters") }
 
-    fun convertUnit() {
-        val inputAsDouble = inputValue.toDoubleOrNull() ?: 0.0
-        val result = (inputAsDouble * inConversionFactor.value * 100.0 / outConversionFactor.value).roundToInt() / 100
-        outputValue = result.toString()
+    val outputValue = remember(
+        inputValue,
+        inConversionFactor,
+        outConversionFactor
+    ) {
+        mutableDoubleStateOf(0.0)
+    }.run {
+        convertUnit(inputValue = inputValue, conversion1 = inConversionFactor, conversion2 = outConversionFactor)
     }
 
     Column (
@@ -81,127 +82,68 @@ fun UnitConverter() {
 
         OutlinedTextField(value = inputValue, onValueChange = {
             inputValue = it
-            convertUnit()
         },
             label = { Text("Enter value") }
         )
         Spacer(modifier = Modifier.height(16.dp))
 
         Row {
-            inConversionFactor = dropdownButton { convertUnit() }
+            DropdownButton {
+                inConversionFactor.doubleValue = it.conversionFactor
+            }
             Spacer(modifier = Modifier.width(16.dp))
-            outConversionFactor = dropdownButton { convertUnit() }
-        }
-
-        val unitTemp by remember {
-            mutableStateOf(
-                when (outConversionFactor.value) {
-                    1.00 -> "Meters"
-                    0.01 -> "Centimeters"
-                    0.3048 -> "Feet"
-                    1609.34 -> "Miles"
-                    else -> ""
-                }
-            )
+            DropdownButton {
+                outConversionFactor.doubleValue = it.conversionFactor
+                outUnit = it.unit
+            }
         }
 
         Spacer(modifier = Modifier.height(16.dp))
-        Text("Result: $outputValue $unitTemp",
+        Text("Result: ${"%.2f".format(outputValue)} $outUnit",
             style = MaterialTheme.typography.headlineMedium
         )
     }
 }
 
 @Composable
-fun dropdownButton(myLambda: () -> Unit): MutableState<Double> {
+private fun convertUnit(inputValue: String, conversion1: MutableState<Double>, conversion2: MutableState<Double>) : Double {
+    val inputValueAsDouble = inputValue.toDoubleOrNull() ?: 0.0
+    return round(inputValueAsDouble * conversion1.value * 100 / conversion2.value) / 100
+}
+
+@Composable
+fun DropdownButton(onClick: (LengthUnit) -> Unit) {
 
     var isExpanded by remember { mutableStateOf(false) }
-    var inputUnit by remember { mutableStateOf("Meters") }
-    val temp = remember { mutableStateOf(0.01) }
+    var selectedUnit by remember { mutableStateOf(LengthUnit.METER) }
 
     Box {
         Button(onClick = { isExpanded = true }) {
-            Text(inputUnit)
+            Text(selectedUnit.unit)
             Spacer(modifier = Modifier.width(5.dp))
             Icon(Icons.Default.ArrowDropDown, contentDescription = "Dropdown Arrow")
         }
         DropdownMenu(
             expanded = isExpanded,
-            onDismissRequest = {
-                isExpanded = false
-        }) {
-            DropdownMenuItem(text = { Text("Centimeters") }, onClick = {
-                isExpanded = false
-                inputUnit = "Centimeters"
-                temp.value = 0.01
-                myLambda.invoke()
-            })
-            DropdownMenuItem(text = { Text("Meters") }, onClick = {
-                isExpanded = false
-                inputUnit = "Meters"
-                temp.value = 1.00
-                myLambda.invoke()
-            })
-            DropdownMenuItem(text = { Text("Feet") }, onClick = {
-                isExpanded = false
-                inputUnit = "Feet"
-                temp.value = 0.3048
-                myLambda.invoke()
-            })
-            DropdownMenuItem(text = { Text("Miles") }, onClick = {
-                isExpanded = false
-                inputUnit = "Miles"
-                temp.value = 1609.34
-                myLambda.invoke()
-            })
+            onDismissRequest = { isExpanded = false }
+        ) {
+            LengthUnit.entries.forEach { dropdownItem ->
+                DropdownMenuItem(
+                    text = { Text(dropdownItem.unit) },
+                    onClick = {
+                        isExpanded = false
+                        selectedUnit = dropdownItem
+                        onClick(dropdownItem)
+                    }
+                )
+            }
         }
     }
-
-    return temp
 }
 
-interface ButtonClick {
-    fun click()
+enum class LengthUnit(val conversionFactor: Double, val unit: String) {
+    METER(1.0, "Meters"),
+    CENTIMETER(0.01, "Centimeters"),
+    FEET(0.3048, "Feet"),
+    MILE(1609.34, "Miles")
 }
-
-
-//@Preview(showBackground = true)
-//@Composable
-//fun UnitConverterPreview() {
-//    UnitConverter()
-//}
-
-//@Composable
-//fun CaptainGame() {
-//    var treasuresFound by remember { mutableIntStateOf(0) }
-//    val directions = remember { mutableStateOf("North") }
-//
-//    Column {
-//        Text("Treasures Found: $treasuresFound")
-//        Text("Current Direction: ${directions.value}")
-//        Button(onClick = {
-//            directions.value = "East"
-//            if (Random.nextBoolean()) treasuresFound += 1
-//        }) {
-//            Text("Sail East")
-//        }
-//        Button(onClick = {
-//            directions.value = "West"
-//            if (Random.nextBoolean()) treasuresFound += 1
-//        }) {
-//            Text("Sail West")
-//        }
-//        Button(onClick = {
-//            directions.value = "North"
-//            if (Random.nextBoolean()) treasuresFound += 1
-//        }) {
-//            Text("Sail North")
-//        }
-//        Button(onClick = {
-//            directions.value = "South"
-//            if (Random.nextBoolean()) treasuresFound += 1
-//        }) {
-//            Text("Sail South")
-//        }
-//    }
-//}
