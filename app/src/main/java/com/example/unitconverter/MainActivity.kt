@@ -30,8 +30,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.example.unitconverter.ui.theme.UnitConverterTheme
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.unit.sp
 import kotlin.math.round
 
 class MainActivity : ComponentActivity() {
@@ -70,13 +74,19 @@ fun UnitConverter() {
         convertUnit(inputValue = inputValue, conversion1 = inConversionFactor, conversion2 = outConversionFactor)
     }
 
+    val customHeadline = TextStyle(
+        fontFamily = FontFamily.Monospace,
+        fontSize = 25.sp,
+        color = Color.Magenta
+    )
+
     Column (
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text("Unit Converter",
-            style = MaterialTheme.typography.headlineLarge
+            style = customHeadline
         )
         Spacer(modifier = Modifier.height(16.dp))
 
